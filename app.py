@@ -2,7 +2,7 @@ import streamlit as st
 import joblib
 import PyPDF2
 import docx
-import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
 
 # -------------------------------
 # PAGE CONFIG
@@ -16,20 +16,21 @@ st.title("AI Resume Screening System")
 st.write("Upload a resume and paste a job description to calculate the match score.")
 
 # -------------------------------
-# LOAD MODEL + VECTORIZER
+# LOAD VECTORIZER
 # -------------------------------
 @st.cache_resource
-def load_model():
-    model = joblib.load("resume_screening_model.pkl")
-    vectorizer = joblib.load("tfidf_vectorizer.pkl")
-    return model, vectorizer
+def load_vectorizer():
+    return joblib.load("tfidf_vectorizer.pkl")
 
-model, vectorizer = load_model()
+vectorizer = load_vectorizer()
 
 # -------------------------------
 # FILE UPLOADER
 # -------------------------------
-uploaded_file = st.file_uploader("Upload Resume (PDF or DOCX)", type=["pdf", "docx"])
+uploaded_file = st.file_uploader(
+    "Upload Resume (PDF or DOCX)",
+    type=["pdf", "docx"]
+)
 
 # -------------------------------
 # JOB DESCRIPTION INPUT
@@ -46,6 +47,7 @@ def extract_text_from_pdf(file):
         text += page.extract_text() or ""
     return text
 
+
 def extract_text_from_docx(file):
     doc = docx.Document(file)
     text = ""
@@ -53,8 +55,9 @@ def extract_text_from_docx(file):
         text += para.text + " "
     return text
 
+
 # -------------------------------
-# PREDICTION LOGIC
+# MATCH CALCULATION
 # -------------------------------
 if st.button("Predict Match Score"):
 
@@ -76,26 +79,31 @@ if st.button("Predict Match Score"):
         st.error("Could not extract text from the resume file.")
         st.stop()
 
-    # Combine resume + job description
-    combined_text = resume_text + " " + job_description
+    # -------------------------------
+    # VECTORIZE RESUME + JOB
+    # -------------------------------
+    resume_vector = vectorizer.transform([resume_text])
+    job_vector = vectorizer.transform([job_description])
 
-    # Vectorize
-    features = vectorizer.transform([combined_text])
+    # -------------------------------
+    # COSINE SIMILARITY
+    # -------------------------------
+    score = cosine_similarity(resume_vector, job_vector)[0][0]
 
-    # Predict
-    score = model.predict(features)[0]
+    # convert to percentage
+    percentage = score * 100
 
     # -------------------------------
     # SCORE INTERPRETATION
     # -------------------------------
     if score >= 0.8:
-        st.success(f"Excellent Match 🔥 ({score:.3f})")
+        st.success(f"Excellent Match 🔥 ({percentage:.2f}%)")
     elif score >= 0.6:
-        st.info(f"Good Match 👍 ({score:.3f})")
+        st.info(f"Good Match 👍 ({percentage:.2f}%)")
     elif score >= 0.4:
-        st.warning(f"Moderate Match ⚠ ({score:.3f})")
+        st.warning(f"Moderate Match ⚠ ({percentage:.2f}%)")
     else:
-        st.error(f"Low Match ❌ ({score:.3f})")
+        st.error(f"Low Match ❌ ({percentage:.2f}%)")
 
-    # Optional progress bar
-    st.progress(min(max(score, 0), 1))
+    # progress bar
+    st.progress(float(score))
