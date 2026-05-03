@@ -99,8 +99,8 @@ import numpy as np
 def load_ml_model():
     """Load the trained ML model and TF-IDF vectorizer from .pkl files."""
     try:
-        model = joblib.load('models/resume_screening_model.pkl')
-        vectorizer = joblib.load('models/tfidf_vectorizer.pkl')
+        model = joblib.load('resume_screening_model.pkl')
+        vectorizer = joblib.load('tfidf_vectorizer.pkl')
         return model, vectorizer
     except FileNotFoundError:
         st.error("ML model files not found. Please ensure 'resume_screening_model.pkl' and 'tfidf_vectorizer.pkl' are in the models/ directory.")
